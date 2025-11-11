@@ -18,13 +18,13 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Register any application services.
      */
-    public function register(): void
-    {
-        // --- هذا هو التعديل الأهم لإصلاح TrustProxies ---
-        // يخبر Laravel أن يثق بالـ Headers من خادم Railway
-        Request::setTrustedProxies(['*'], Request::HEADER_X_FORWARDED_ALL);
-        // --------------------------------------------------
-    }
+
+public function register(): void
+{
+    // --- هذا هو التعديل النهائي الأكثر أماناً لحل مشكلة HTTPS ---
+    Request::setTrustedProxies(['*'], Request::HEADER_X_FORWARDED_PROTO);
+    // -----------------------------------------------------------
+}
 
     /**
      * Bootstrap any application services.
