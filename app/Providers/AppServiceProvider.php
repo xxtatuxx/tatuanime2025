@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -16,12 +17,12 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // Add this line
-    if ($this->app->environment('production')) {
-        URL::forceScheme('https');
-    }
-    
         JsonResource::withoutWrapping();
+
+        // إجبار Laravel على استخدام HTTPS في بيئة الإنتاج أو على الاستضافات مثل Railway
+        if (request()->header('x-forwarded-proto') === 'https' || app()->environment('production')) {
+            URL::forceScheme('https');
+        }
 
         // مشاركة المستخدم الحالي مع Inertia
         Inertia::share([
