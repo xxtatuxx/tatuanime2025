@@ -2,36 +2,29 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Episode, type BreadcrumbItem } from '@/types';
 import { Head, Link, usePage, router as inertia } from '@inertiajs/vue3';
-import { ref, watch } from 'vue'; // تم إزالة onMounted و onUnmounted و ref(allEpisodes, nextPageUrl)
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { toast } from 'vue-sonner';
 import { Input } from '@/components/ui/input';
 import { Trash2, Edit, Eye } from 'lucide-vue-next';
-
-// تعريف هيكل الترقيم الكامل لاستقباله من Laravel
-interface PaginatedEpisodes {
-  data: Episode[];
-  links: { url: string | null; label: string; active: boolean }[];
-  current_page: number;
-  last_page: number;
-  from: number;
-  to: number;
-  total: number;
-}
 
 const breadcrumbs: BreadcrumbItem[] = [
   { title: 'Episodes', href: '/episodes' },
 ];
 
 const page = usePage<{
-  episodes: PaginatedEpisodes; // استخدام الهيكل الجديد
+  episodes: { data: Episode[]; next_page_url?: string };
   flash?: { success?: string };
   filters?: { search?: string };
   auth: { user: any };
 }>();
 
+const episodes = ref<Episode[]>([]);
+const allEpisodes = ref<Episode[]>([]);
+const nextPageUrl = ref<string | null>(null);
 const search = ref(page.props.filters?.search || '');
-const initialLoading = ref(false); // نعتمد على التحميل الأولي من props
-// تمت إزالة loadingMore = ref(false);
+const initialLoading = ref(true); // Skeleton التحميل الأولي
+const loadingMore = ref(false); // Skeleton عند النزول
+const currentPage = ref(1); // الصفحة الحالية للتحكم بالتحميل بدون تغيير الرابط
 
 // عرض إشعارات الفلاش
 if (page.props.flash?.success) {
@@ -41,14 +34,19 @@ if (page.props.flash?.success) {
 
 // البحث
 watch(search, (value) => {
+  currentPage.value = 1;
   inertia.get(
     '/episodes',
-    { search: value },
+    { search: value, page: currentPage.value },
     {
       preserveState: true,
       replace: true,
       onStart: () => (initialLoading.value = true),
-      // لا حاجة لتعديل episodes.value يدوياً، Inertia ستقوم بتحديث page.props.episodes
+      onSuccess: (pageResponse) => {
+        episodes.value = pageResponse.props.episodes.data;
+        allEpisodes.value = pageResponse.props.episodes.data;
+        nextPageUrl.value = pageResponse.props.episodes.next_page_url;
+      },
       onFinish: () => (initialLoading.value = false),
     }
   );
@@ -59,10 +57,10 @@ const deleteEpisode = (id: number) => {
   if (!confirm('هل أنت متأكد من حذف هذه الحلقة؟')) return;
 
   inertia.delete(route('episodes.destroy', id), {
-    // بعد الحذف، نطلب إعادة تحميل قائمة الحلقات فقط للحصول على حالة جديدة
     onSuccess: () => {
-        inertia.reload({ only: ['episodes'] });
-        toast.success('تم حذف الحلقة بنجاح');
+      episodes.value = episodes.value.filter((e) => e.id !== id);
+      allEpisodes.value = allEpisodes.value.filter((e) => e.id !== id);
+      toast.success('تم حذف الحلقة بنجاح');
     },
     onError: () => {
       toast.error('حدث خطأ أثناء الحذف');
@@ -70,13 +68,65 @@ const deleteEpisode = (id: number) => {
   });
 };
 
-// *** تم حذف جميع الدوال المتعلقة بالتمرير اللانهائي (loadMore, onScroll, onMounted listener, onUnmounted) ***
+// تحميل المزيد عند النزول
+const loadMore = () => {
+  if (loadingMore.value) return;
+  if (!nextPageUrl.value) return;
 
-// لم نعد نحتاج إلى هذه الدالة لأن Inertia تُحدث الـ props مباشرة
-// const episodes = ref<Episode[]>([]); 
-// const allEpisodes = ref<Episode[]>([]);
-// const nextPageUrl = ref<string | null>(null);
+  loadingMore.value = true;
+  currentPage.value++;
 
+  inertia.get(
+    '/episodes', // الرابط ثابت
+    { search: search.value, page: currentPage.value }, // query params داخلي
+    {
+      preserveScroll: true,
+      preserveState: true,
+      only: ['episodes'],
+      replace: false, // لا تغيّر الرابط في المتصفح
+      onSuccess: (pageResponse) => {
+        const newData = pageResponse.props.episodes.data;
+        const existingIds = new Set(episodes.value.map((e) => e.id));
+        const filteredData = newData.filter((e) => !existingIds.has(e.id));
+        episodes.value.push(...filteredData);
+        allEpisodes.value.push(...filteredData);
+        nextPageUrl.value = pageResponse.props.episodes.next_page_url;
+      },
+      onFinish: () => {
+        loadingMore.value = false;
+      },
+    }
+  );
+};
+
+const onScroll = () => {
+  const scrollPosition = window.innerHeight + window.scrollY;
+  const bottom = document.documentElement.offsetHeight - 50;
+  if (scrollPosition >= bottom) {
+    loadMore();
+  }
+};
+
+onMounted(() => {
+  // تحميل الصفحة الأولى عند الدخول
+  inertia.get('/episodes', { page: currentPage.value }, {
+    preserveState: true,
+    onSuccess: (pageResponse) => {
+      episodes.value = pageResponse.props.episodes.data;
+      allEpisodes.value = pageResponse.props.episodes.data;
+      nextPageUrl.value = pageResponse.props.episodes.next_page_url;
+    },
+    onFinish: () => {
+      initialLoading.value = false;
+    },
+  });
+
+  window.addEventListener('scroll', onScroll);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', onScroll);
+});
 </script>
 
 <template>
@@ -90,6 +140,7 @@ const deleteEpisode = (id: number) => {
 
   <AppLayout :breadcrumbs="breadcrumbs">
     <div class="flex flex-col flex-1 gap-4 p-4 rounded-xl font-[Cairo]">
+      <!-- مربع البحث وزر إضافة حلقة -->
       <div class="flex items-center w-full gap-2 mb-4">
         <Input
           v-model="search"
@@ -104,6 +155,7 @@ const deleteEpisode = (id: number) => {
         </Link>
       </div>
 
+      <!-- Skeleton التحميل الأولي -->
       <div
         v-if="initialLoading"
         class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
@@ -120,16 +172,18 @@ const deleteEpisode = (id: number) => {
         </div>
       </div>
 
+      <!-- عرض الحلقات بعد التحميل -->
       <div
         v-else
         class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 font-[Cairo]"
       >
         <div
-          v-for="episode in page.props.episodes.data"
+          v-for="episode in episodes"
           :key="episode.id"
           @click="inertia.visit(route('episodes.show', episode.id))"
           class="relative overflow-hidden transition transform bg-white rounded-lg shadow cursor-pointer dark:bg-black hover:scale-105 hover:shadow-lg"
         >
+          <!-- الصورة -->
           <div class="relative">
             <img
               v-if="episode.thumbnail"
@@ -144,6 +198,7 @@ const deleteEpisode = (id: number) => {
               No Image
             </div>
 
+            <!-- دائرة "يعرض الآن" -->
             <div
               v-if="episode.is_published"
               class="absolute top-2 left-2 bg-green-600 text-white text-[10px] font-bold rounded-full px-2 py-0.5 shadow-md"
@@ -151,6 +206,7 @@ const deleteEpisode = (id: number) => {
               يعرض الآن
             </div>
 
+            <!-- نوع الفيديو -->
             <div
               v-if="episode.video_format"
               class="absolute top-2 right-2 bg-blue-600 text-white text-[10px] font-bold rounded-full px-2 py-0.5 shadow-md"
@@ -158,12 +214,15 @@ const deleteEpisode = (id: number) => {
               {{ episode.video_format }}
             </div>
 
+            <!-- رقم الحلقة أسفل الصورة -->
             <div
               class="absolute bottom-0 left-0 right-0 py-1 text-xl font-bold text-center text-white bg-black bg-opacity-60"
             >
               {{ episode.episode_number }} الحلقة
             </div>
           </div>
+
+          <!-- بيانات الحلقة -->
           <div class="flex flex-col gap-1 p-2">
             <div class="flex items-center justify-between">
               <span class="text-sm font-semibold truncate">{{ episode.title }}</span>
@@ -176,6 +235,7 @@ const deleteEpisode = (id: number) => {
             </div>
           </div>
 
+          <!-- أزرار التحكم -->
           <div
             class="flex justify-around p-2 border-t border-gray-200 dark:border-t-black dark:bg-black bg-gray-50 dark:bg-gray-900"
             @click.stop
@@ -200,40 +260,28 @@ const deleteEpisode = (id: number) => {
             </button>
           </div>
         </div>
+
+        <!-- Skeleton عند النزول للأسفل -->
+        <div
+          v-if="loadingMore"
+          class="grid grid-cols-2 gap-4 col-span-full sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+        >
+          <div
+            v-for="n in 5"
+            :key="n"
+            role="status"
+            class="max-w-sm p-4 rounded-lg shadow animate-pulse dark:border-gray-300"
+          >
+            <div class="w-full h-40 mb-4 bg-gray-300 rounded-md"></div>
+            <div class="h-3 bg-gray-300 rounded-full mb-2.5"></div>
+            <div class="w-3/4 h-3 bg-gray-300 rounded-full"></div>
+          </div>
+        </div>
       </div>
-      
-      <div 
-        v-if="page.props.episodes.links.length > 3" 
-        class="flex justify-center w-full mt-6"
-      >
-        <template v-for="link in page.props.episodes.links" :key="link.label">
-          <Link
-            v-if="link.url"
-            :href="link.url"
-            v-html="link.label"
-            class="px-4 py-2 mx-1 text-sm transition-colors duration-200 rounded-lg"
-            :class="{ 
-              'bg-purple-600 text-white font-bold': link.active,
-              'bg-gray-100 text-gray-700 hover:bg-gray-200': !link.active,
-              // تعديلات للموبايل: تصغير المساحات
-              'text-xs px-3 py-1.5 mx-0.5': link.label.length < 3, // الأرقام
-              'text-xs px-2 py-1.5 mx-0.5': link.label.includes('Previous') || link.label.includes('Next') // الأسهم
-            }"
-            preserve-scroll
-          />
-          <span
-            v-else
-            v-html="link.label"
-            class="px-4 py-2 mx-1 text-sm text-gray-400 rounded-lg cursor-not-allowed bg-gray-50"
-            :class="{
-              'text-xs px-3 py-1.5 mx-0.5': link.label.length < 3,
-              'text-xs px-2 py-1.5 mx-0.5': link.label.includes('Previous') || link.label.includes('Next')
-            }"
-          />
-        </template>
-      </div>
+
+      <!-- لا توجد بيانات -->
       <div
-        v-if="!initialLoading && page.props.episodes.data.length === 0"
+        v-if="!nextPageUrl && !loadingMore && episodes.length === 0"
         class="py-4 text-center text-gray-500 col-span-full"
       >
         لا توجد حلقات
@@ -244,7 +292,7 @@ const deleteEpisode = (id: number) => {
 
 <style>
 .loader {
-  width: 48px; /* تأكد أن لا يوجد أي حرف غريب هنا */
+  width: 48px;
   height: 48px;
   border-radius: 50%;
   display: inline-block;
@@ -256,7 +304,7 @@ const deleteEpisode = (id: number) => {
 }
 .loader::after,
 .loader::before {
-  content: '';
+  content: '';  
   box-sizing: border-box;
   position: absolute;
   left: 0;
