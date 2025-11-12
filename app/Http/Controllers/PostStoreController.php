@@ -11,21 +11,24 @@ class PostStoreController extends Controller
      * Handle the incoming request.
      */
     public function __invoke(Request $request)
-    {
-        $data = $request->validate([
-            'title' => 'required',
-            'content' => 'required',
-            'image' => 'required|image',
-        ]);
+{
+    $data = $request->validate([
+        'title' => 'required',
+        'content' => 'required',
+        'image' => 'required|image',
+    ]);
 
-        $data['slug'] = str($data['title'])->slug();
+    $data['slug'] = str($data['title'])->slug();
 
-        if($request->hasFile('image')){
-            $data['image'] = Storage::disk('public')->put('posts', $request->file('image'));
-        }
-
-        $request->user()->posts()->create($data);
-        return to_route('posts.index')->with('success', 'Post created successfully');
-
+    if ($request->hasFile('image')) {
+        $file = $request->file('image');
+        $filename = str($data['title'])->slug() . '.' . $file->getClientOriginalExtension(); // استخدام title كاسم الملف مع الإمتداد
+        $data['image'] = $file->storeAs('animes', $filename, 'public'); // تخزين الملف باسم محدد
     }
+
+    $request->user()->posts()->create($data);
+
+    return to_route('posts.index')->with('success', 'Post created successfully');
+}
+
 }
