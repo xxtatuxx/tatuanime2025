@@ -10,7 +10,7 @@ class PostStoreController extends Controller
     /**
      * Handle the incoming request.
      */
-    public function __invoke(Request $request)
+ public function __invoke(Request $request)
 {
     $data = $request->validate([
         'title' => 'required',
@@ -22,8 +22,16 @@ class PostStoreController extends Controller
 
     if ($request->hasFile('image')) {
         $file = $request->file('image');
-        $filename = str($data['title'])->slug() . '.' . $file->getClientOriginalExtension(); // استخدام title كاسم الملف مع الإمتداد
-        $data['image'] = $file->storeAs('animes', $filename, 'public'); // تخزين الملف باسم محدد
+
+        // جلب الاسم الأصلي للملف (بدون تغييرات)
+        $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+        $extension = $file->getClientOriginalExtension();
+
+        // إعادة بناء الاسم بنفس اسم الملف الأصلي + الامتداد
+        $filename = $originalName . '.' . $extension;
+
+        // تخزين الصورة بنفس الاسم الأصلي في مجلد animes داخل القرص public
+        $data['image'] = $file->storeAs('animes', $filename, 'public');
     }
 
     $request->user()->posts()->create($data);
