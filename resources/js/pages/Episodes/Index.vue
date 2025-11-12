@@ -90,7 +90,7 @@ const deleteEpisode = (id: number) => {
 
   <AppLayout :breadcrumbs="breadcrumbs">
     <div class="flex flex-col flex-1 gap-4 p-4 rounded-xl font-[Cairo]">
-      <div class="flex w-full mb-4 items-center gap-2">
+      <div class="flex items-center w-full gap-2 mb-4">
         <Input
           v-model="search"
           placeholder="بحث عن الحلقات..."
@@ -112,11 +112,11 @@ const deleteEpisode = (id: number) => {
           v-for="n in 10"
           :key="n"
           role="status"
-          class="animate-pulse max-w-sm p-4 rounded-lg shadow dark:border-gray-300"
+          class="max-w-sm p-4 rounded-lg shadow animate-pulse dark:border-gray-300"
         >
-          <div class="h-40 w-full bg-gray-300 rounded-md mb-4"></div>
+          <div class="w-full h-40 mb-4 bg-gray-300 rounded-md"></div>
           <div class="h-3 bg-gray-300 rounded-full mb-2.5"></div>
-          <div class="h-3 bg-gray-300 rounded-full w-3/4"></div>
+          <div class="w-3/4 h-3 bg-gray-300 rounded-full"></div>
         </div>
       </div>
 
@@ -159,13 +159,13 @@ const deleteEpisode = (id: number) => {
             </div>
 
             <div
-              class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white text-center py-1 font-bold text-xl"
+              class="absolute bottom-0 left-0 right-0 py-1 text-xl font-bold text-center text-white bg-black bg-opacity-60"
             >
               {{ episode.episode_number }} الحلقة
             </div>
           </div>
           <div class="flex flex-col gap-1 p-2">
-            <div class="flex justify-between items-center">
+            <div class="flex items-center justify-between">
               <span class="text-sm font-semibold truncate">{{ episode.title }}</span>
               <span
                 v-if="episode.series?.type"
@@ -177,7 +177,7 @@ const deleteEpisode = (id: number) => {
           </div>
 
           <div
-            class="flex justify-around p-2 border-t dark:border-t-black border-gray-200 dark:bg-black bg-gray-50 dark:bg-gray-900"
+            class="flex justify-around p-2 border-t border-gray-200 dark:border-t-black dark:bg-black bg-gray-50 dark:bg-gray-900"
             @click.stop
           >
             <Link
@@ -204,14 +204,14 @@ const deleteEpisode = (id: number) => {
       
       <div 
         v-if="page.props.episodes.links.length > 3" 
-        class="flex justify-center mt-6 w-full"
+        class="flex justify-center w-full mt-6"
       >
         <template v-for="link in page.props.episodes.links" :key="link.label">
           <Link
             v-if="link.url"
             :href="link.url"
             v-html="link.label"
-            class="px-4 py-2 mx-1 text-sm rounded-lg transition-colors duration-200"
+            class="px-4 py-2 mx-1 text-sm transition-colors duration-200 rounded-lg"
             :class="{ 
               'bg-purple-600 text-white font-bold': link.active,
               'bg-gray-100 text-gray-700 hover:bg-gray-200': !link.active,
@@ -224,7 +224,7 @@ const deleteEpisode = (id: number) => {
           <span
             v-else
             v-html="link.label"
-            class="px-4 py-2 mx-1 text-sm text-gray-400 rounded-lg bg-gray-50 cursor-not-allowed"
+            class="px-4 py-2 mx-1 text-sm text-gray-400 rounded-lg cursor-not-allowed bg-gray-50"
             :class="{
               'text-xs px-3 py-1.5 mx-0.5': link.label.length < 3,
               'text-xs px-2 py-1.5 mx-0.5': link.label.includes('Previous') || link.label.includes('Next')
@@ -243,58 +243,57 @@ const deleteEpisode = (id: number) => {
 </template>
 
 <style>
-/* CSS Styles remain as originally provided (no change) */
 .loader {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  display: inline-block;
-  position: relative;
-  border: 3px solid;
-  border-color: #FFF #FFF transparent transparent;
-  box-sizing: border-box;
-  animation: rotation 1s linear infinite;
+  width: 48px; /* تأكد أن لا يوجد أي حرف غريب هنا */
+  height: 48px;
+  border-radius: 50%;
+  display: inline-block;
+  position: relative;
+  border: 3px solid;
+  border-color: #FFF #FFF transparent transparent;
+  box-sizing: border-box;
+  animation: rotation 1s linear infinite;
 }
 .loader::after,
 .loader::before {
-  content: '';  
-  box-sizing: border-box;
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  margin: auto;
-  border: 3px solid;
-  border-color: transparent transparent #FF3D00 #FF3D00;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  box-sizing: border-box;
-  animation: rotationBack 0.5s linear infinite;
-  transform-origin: center center;
+  content: '';
+  box-sizing: border-box;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  margin: auto;
+  border: 3px solid;
+  border-color: transparent transparent #FF3D00 #FF3D00;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  animation: rotationBack 0.5s linear infinite;
+  transform-origin: center center;
 }
 .loader::before {
-  width: 32px;
-  height: 32px;
-  border-color: #FFF #FFF transparent transparent;
-  animation: rotation 1.5s linear infinite;
+  width: 32px;
+  height: 32px;
+  border-color: #FFF #FFF transparent transparent;
+  animation: rotation 1.5s linear infinite;
 }
-    
+    
 @keyframes rotation {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 } 
 @keyframes rotationBack {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(-360deg);
-  }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(-360deg);
+  }
 }
 </style>
