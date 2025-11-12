@@ -10,33 +10,39 @@ class PostStoreController extends Controller
     /**
      * Handle the incoming request.
      */
- public function __invoke(Request $request)
+public function __invoke(Request $request)
 {
     $data = $request->validate([
         'title' => 'required',
         'content' => 'required',
-        'image' => 'required|image',
+        'images' => 'required|array',
+        'images.*' => 'image',
     ]);
 
-    $data['slug'] = str($data['title'])->slug();
+    $slug = str($data['title'])->slug();
 
-    if ($request->hasFile('image')) {
-        $file = $request->file('image');
+    if ($request->hasFile('images')) {
+        foreach ($request->file('images') as $file) {
+            // جلب الاسم الأصلي للملف
+            $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+            $extension = $file->getClientOriginalExtension();
+            $filename = $originalName . '.' . $extension;
 
-        // جلب الاسم الأصلي للملف (بدون تغييرات)
-        $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-        $extension = $file->getClientOriginalExtension();
+            // حفظ الصورة في مجلد animes
+            $path = $file->storeAs('animes', $filename, 'public');
 
-        // إعادة بناء الاسم بنفس اسم الملف الأصلي + الامتداد
-        $filename = $originalName . '.' . $extension;
-
-        // تخزين الصورة بنفس الاسم الأصلي في مجلد animes داخل القرص public
-        $data['image'] = $file->storeAs('animes', $filename, 'public');
+            // إنشاء صف جديد في posts لكل صورة
+            $request->user()->posts()->create([
+                'title' => $data['title'],
+                'content' => $data['content'],
+                'slug' => $slug,
+                'image' => $path, // تخزين مسار الصورة
+            ]);
+        }
     }
 
-    $request->user()->posts()->create($data);
-
-    return to_route('posts.index')->with('success', 'Post created successfully');
+    return to_route('posts.index')->with('success', 'Posts created successfully with multiple images');
 }
+
 
 }
