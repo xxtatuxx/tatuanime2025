@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { PostForm, type BreadcrumbItem } from '@/types';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, useForm, router } from '@inertiajs/vue3';
 import { LoaderCircle } from 'lucide-vue-next';
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button';
@@ -17,27 +17,42 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const form = useForm<PostForm>({
+// ✨ إعداد البيانات
+const form = useForm({
     title: '',
     content: '',
-    image: null,
+    images: [] as File[],
 });
 
-const imagePreview = ref<string | null>(null);
+const imagePreviews = ref<string[]>([]);
 
-const submit = () => {
-    form.post(route('posts.store'));
-};
-
+// ✨ عند اختيار الصور
 const handleImageInput = (e: Event) => {
     const target = e.target as HTMLInputElement;
-    const file = target.files?.[0];
-    if (file) {
-        form.image = file;
-        imagePreview.value = URL.createObjectURL(file);
-    }
+    const files = target.files ? Array.from(target.files) : [];
+
+    form.images = files;
+    imagePreviews.value = files.map(file => URL.createObjectURL(file));
 };
 
+// ✨ الإرسال إلى Laravel
+const submit = () => {
+    const data = new FormData();
+    data.append('title', form.title);
+    data.append('content', form.content);
+
+    form.images.forEach((file, index) => {
+        data.append(`images[${index}]`, file);
+    });
+
+    router.post(route('posts.store'), data, {
+        forceFormData: true, // مهم جدًا حتى يرسل الملفات كـ FormData
+        onFinish: () => {
+            imagePreviews.value = [];
+            form.reset('images');
+        },
+    });
+};
 </script>
 
 <template>
@@ -48,6 +63,7 @@ const handleImageInput = (e: Event) => {
             <div class="p-6 mx-auto mt-8 bg-white shadow-lg min-w-md dark:bg-neutral-800 rounded-xl">
                 <form @submit.prevent="submit" class="flex flex-col gap-6">
                     <div class="grid gap-6">
+                        <!-- 🟢 العنوان -->
                         <div class="grid gap-2">
                             <Label for="title">Title</Label>
                             <Input
@@ -61,17 +77,30 @@ const handleImageInput = (e: Event) => {
                             />
                             <InputError :message="form.errors.title" />
                         </div>
+
+                        <!-- 🟢 رفع الصور -->
                         <div class="grid gap-2">
-                            <Label for="title">Image</Label>
+                            <Label for="images">Images</Label>
                             <Input
-                                id="image"
+                                id="images"
                                 type="file"
+                                multiple
                                 :tabindex="2"
                                 @change="handleImageInput"
                             />
-                            <img v-if="imagePreview" :src="imagePreview" alt="" class="object-cover w-12 h-12 rounded">
-                            <InputError :message="form.errors.image" />
+                            <div class="flex flex-wrap gap-2 mt-2">
+                                <img
+                                    v-for="(src, i) in imagePreviews"
+                                    :key="i"
+                                    :src="src"
+                                    alt="preview"
+                                    class="object-cover w-16 h-16 border border-gray-300 rounded"
+                                />
+                            </div>
+                            <InputError :message="form.errors.images" />
                         </div>
+
+                        <!-- 🟢 المحتوى -->
                         <div class="grid gap-2">
                             <Label for="content">Content</Label>
                             <Textarea
@@ -84,12 +113,14 @@ const handleImageInput = (e: Event) => {
                             />
                             <InputError :message="form.errors.content" />
                         </div>
+
+                        <!-- 🟢 زر الإرسال -->
                         <Button type="submit" class="w-full mt-4" :tabindex="4" :disabled="form.processing">
                             <LoaderCircle v-if="form.processing" class="w-4 h-4 animate-spin" />
-                           Create
+                            Create
                         </Button>
                     </div>
-        </form>
+                </form>
             </div>
         </div>
     </AppLayout>
