@@ -7,10 +7,10 @@ use Inertia\Inertia;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-// --- الإضافات المطلوبة ---
-use Illuminate\Http\Request; // لإصلاح الوكيل (Proxy)
-use Illuminate\Support\Facades\URL; // لإصلاح forceScheme
-// -------------------------
+// --- الإضافات الضرورية لحل مشكلة HTTPS (مطلوبة) ---
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\URL; 
+// --------------------------------------------------
 
 
 class AppServiceProvider extends ServiceProvider
@@ -18,27 +18,25 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Register any application services.
      */
-
-public function register(): void
-{
-    // --- هذا هو التعديل النهائي الأكثر أماناً لحل مشكلة HTTPS ---
-    Request::setTrustedProxies(['*'], Request::HEADER_X_FORWARDED_PROTO);
-    // -----------------------------------------------------------
-}
+    public function register(): void
+    {
+        // 1. حل مشكلة الوكيل (Proxy) - الثابت الأكثر توافقاً
+        // هذا يضمن أن Laravel سيكتشف أن الاتصال الأصلي كان https
+        Request::setTrustedProxies(['*'], Request::HEADER_X_FORWARDED_PROTO);
+    }
 
     /**
      * Bootstrap any application services.
      */
     public function boot(): void
     {
-        // هذا السطر كان صحيحاً، وأضفنا له 'use' في الأعلى
-        if ($this->app->environment('production')) {
-            URL::forceScheme('https');
-        }
+        // 2. إجبار بروتوكول HTTPS بشكل مطلق (الملاذ الأخير الأقوى)
+        // تمت إزالة شرط البيئة لضمان عمل HTTPS في جميع الظروف
+        URL::forceScheme('https'); 
         
         JsonResource::withoutWrapping();
 
-        // مشاركة المستخدم الحالي مع Inertia (الكود الخاص بك سليم)
+        // مشاركة المستخدم الحالي مع Inertia (الكود الأصلي الخاص بك)
         Inertia::share([
             'auth' => function () {
                 $user = Auth::user();
