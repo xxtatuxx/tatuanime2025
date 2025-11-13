@@ -1,1 +1,47 @@
 
+<?php
+
+namespace App\Http\Controllers\Home;
+use App\Models\Episode;
+use App\Models\Anime;
+use App\Models\EpisodeVideo;
+use Illuminate\Support\Facades\DB;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+
+class HomeController extends Controller
+{
+    public function index(Request $request)
+    {
+                    
+    // جلب قيمة البحث من الطلب
+    $search = $request->input('search');
+
+    // إنشاء استعلام أساسي للحلقات مع العلاقة مع الأنمي
+    $query = Episode::with('series')->latest();
+
+    // إذا وُجد بحث، أضف شرط البحث
+    if (!empty($search)) {
+        $query->where(function ($q) use ($search) {
+            $q->where('title', 'LIKE', "%{$search}%") // البحث في عنوان الحلقة
+              ->orWhere('episode_number', $search) // البحث برقم الحلقة بالضبط
+              ->orWhereHas('series', function ($seriesQuery) use ($search) {
+                  $seriesQuery->where('name', 'LIKE', "%{$search}%"); // البحث في اسم الأنمي المرتبط
+              });
+        });
+    }
+
+    // تنفيذ الاستعلام مع ترقيم الصفحات
+    $episodes = $query->paginate(15);
+
+    // تمرير النتائج إلى واجهة Inertia
+    return Inertia::render('home/ar-home', [
+        'episodes' => $episodes,
+        'filters' => [
+            'search' => $search,
+        ],
+    ]);
+    }
+}
