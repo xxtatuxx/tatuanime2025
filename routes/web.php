@@ -30,6 +30,7 @@ use App\Http\Middleware\CheckPermissionPermission;
 Route::get('/', function () {
     return Inertia::render('Welcome');
 })->name('home');
+Route::get('/ar/home', [HomeController::class, 'index'])->name('home');
 
 // ========================
 // لوحة التحكم
