@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AnimeController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\EpisodeController;
-use App\Http\Controllers\Home\HomeController;
+use App\Http\Controllers\HomeController;
 use Inertia\Inertia;
 
 // Middleware Classes
